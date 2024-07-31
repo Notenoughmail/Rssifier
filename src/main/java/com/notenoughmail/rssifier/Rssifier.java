@@ -255,7 +255,7 @@ public class Rssifier {
                                 post.has("author") ? post.get("author").getAsString() : null
                         );
                     } else {
-                        err("Post definition requires 'publishDate', 'permalink', and 'title' properties");
+                        err("Post definition requires 'permalink' and 'title' properties");
                         return null;
                     }
                 } else {
