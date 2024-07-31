@@ -71,16 +71,17 @@ public class Rssifier {
                         JsonArray.class
                 ).asList().stream().map(Rssifier::parseFeedConfig).filter(Objects::nonNull).toList();
 
+                postProcessing:
                 for (FeedDef def : feedDefs) {
                     final Document site = Jsoup.connect(def.url()).get();
                     final PostDef siteInfo = def.posts();
                     final Element title = site.selectFirst(siteInfo.title());
                     if (title == null) {
-                        err("Could not select title with query %s in site %s".formatted(siteInfo.title(), def.url()));
+                        err("Could not select title with query <b>%s</b> in site <i>%s</i> (%s)".formatted(siteInfo.title(), def.url(), def.title()));
                         break;
                     }
 
-                    final String postTitle = title.wholeOwnText();
+                    final String postTitle = title.wholeOwnText().replace('\n', ' ').trim();
                     final Path feedLocation = feedsPath.resolve(def.file());
                     final Document feed = Jsoup.parse(feedLocation, null, "", Parser.xmlParser().settings(ParseSettings.preserveCase));
                     final Element channel = feed.getElementsByTag("channel").getFirst();
@@ -88,15 +89,23 @@ public class Rssifier {
 
                     boolean postAlreadyExists = false;
                     for (Element item : items) {
-                        final Element itemTitle = item.getElementsByTag("title").getFirst();
-                        if (itemTitle != null) {
-                            if (itemTitle.text().equals(postTitle)) {
+                        final Elements titleElements = item.getElementsByTag("title");
+                        if (!titleElements.isEmpty()) {
+                            if (titleElements.getFirst().text().trim().equals(postTitle)) {
                                 postAlreadyExists = true;
                                 break;
                             }
                         } else {
-                            err("Existing post did not have a 'title' element? Skipping processing");
-                            break;
+                            err("Existing <i>%s</i> post \n<blockquote>%s</blockquote>\n did not have a 'title' element? Skipping processing".formatted(
+                                    def.title(),
+                                    item.toString()
+                                            .replace("><", ">\n<")
+                                            .replace("<", "&lt;")
+                                            .replace(">", "&gt;")
+                                            .replace("&", "&amp;")
+                                            .replace("\"", "&quot;")
+                            ));
+                            break postProcessing;
                         }
                     }
 
@@ -104,31 +113,31 @@ public class Rssifier {
                         final String
                                 postDate = siteInfo.publishDate() == null ? nowDateString() : mapNullable(site.selectFirst(siteInfo.publishDate()), elm -> {
                                     if (elm == null) {
-                                        err("Could not find publish date with query %s, using current time".formatted(siteInfo.publishDate()));
+                                        err("Could not find publish date with query <b>%s</b> in site <i>%s</i> (%s), using current time".formatted(siteInfo.publishDate(), def.url(), def.title()));
                                         return nowDateString();
                                     }
-                                    return elm.text();
+                                    return elm.text().trim();
                                 }),
                                 postLink = mapNullable(site.selectFirst(siteInfo.permalink()), elm -> {
                                     if (elm == null) {
-                                        err("Could not find permalink with query %s, using site url".formatted(siteInfo.permalink()));
+                                        err("Could not find permalink with query <b>%s<b> in site <i>%s</i> (%s), using site url".formatted(siteInfo.permalink(), def.url(), def.title()));
                                         return def.url();
                                     }
-                                    return elm.attr("abs:href");
+                                    return elm.attr("abs:href").trim();
                                 }),
                                 postDesc = siteInfo.description() == null ? postTitle : mapNullable(site.selectFirst(siteInfo.description()), elm -> {
                                     if (elm == null) {
-                                        err("Could not find post description with query %s, using post title".formatted(siteInfo.description()));
+                                        err("Could not find post description with query <b>%s</b> in site <i>%s</i> (%s), using post title".formatted(siteInfo.description(), def.url(), def.title()));
                                         return postTitle;
                                     }
-                                    return elm.text();
+                                    return elm.text().trim();
                                 }),
                                 postAuth = siteInfo.author() == null ? null : mapNullable(site.selectFirst(siteInfo.author()), elm -> {
                                     if (elm == null) {
-                                        err("Could not find post author with query %s".formatted(siteInfo.author()));
+                                        err("Could not find post author with query <b>%s</b> in site <i>%s</i> (%s)".formatted(siteInfo.author(), def.url(), def.title()));
                                         return "";
                                     }
-                                    return elm.text();
+                                    return elm.text().trim();
                                 });
 
                         final Element post = new Element("item", Parser.NamespaceXml);
@@ -136,11 +145,10 @@ public class Rssifier {
                                 new Element("title").appendText(postTitle),
                                 new Element("pubDate").appendText(postDate),
                                 new Element("description").appendText(postDesc),
-                                new Element("link").appendText("%s?utm_source=rss".formatted(postLink)),
-                                new Element("guid").appendText(postLink)
+                                new Element("link").appendText("%s?utm_source=rss".formatted(postLink))
                         );
-                        assert postAuth != null; // I don't know why IDEA thinks this might be null
-                        if (!postAuth.isEmpty()) {
+                        if (def.guid()) post.insertChildren(-1, new Element("guid").appendText(postLink));
+                        if (postAuth != null && !postAuth.isEmpty()) {
                             post.insertChildren(-1, new Element("author").appendText(postAuth));
                         }
                         items.addFirst(post);
@@ -186,8 +194,7 @@ public class Rssifier {
                 print.println(status);
                 print.close();
             } catch (Exception e) {
-                err("Unable to create error post!");
-                err(e);
+                err("Unable to create error post!", e);
                 System.out.println(errors);
             }
         }
@@ -200,7 +207,7 @@ public class Rssifier {
                 new Element("title").appendText("Errors while running Rssifier"),
                 new Element("pubDate").appendText(nowDateString()),
                 new Element("author").appendText("Rssifier"),
-                new Element("description").appendText(errors.toString().replace("\n", "<p>"))
+                new Element("description").appendText(errors.toString().replace("\n", "<br>"))
         );
         return post;
     }
@@ -230,16 +237,17 @@ public class Rssifier {
                     obj.has("post")
             ) {
                 final Path feedLocation = feedsPath.resolve("%s.xml".formatted(obj.get("file").getAsString()));
+                final String title = obj.get("title").getAsString();
                 if (!feedLocation.toFile().exists()) {
                     try {
                         initFeed(
                                 obj.get("file").getAsString(),
-                                obj.get("title").getAsString(),
+                                title,
                                 obj.get("description").getAsString(),
                                 obj.get("url").getAsString()
                         );
                     } catch (IOException exception) {
-                        err("Error creating feed file", exception);
+                        err("Error creating feed file for %s".formatted(title), exception);
                         return null;
                     }
                 }
@@ -255,14 +263,21 @@ public class Rssifier {
                                 post.has("author") ? post.get("author").getAsString() : null
                         );
                     } else {
-                        err("Post definition requires 'permalink' and 'title' properties");
+                        err("Post definition requires 'permalink' and 'title' properties, %s post definition does not have them".formatted(title));
                         return null;
                     }
                 } else {
                     err("Error parsing feed definition %S".formatted(json), "Post definition must be a json object");
                     return null;
                 }
-                return new FeedDef(obj.get("url").getAsString(), feedLocation, obj.has("keepPosts") ? obj.get("keepPosts").getAsInt() : 10, posts);
+                return new FeedDef(
+                        obj.get("url").getAsString(),
+                        title,
+                        feedLocation,
+                        obj.has("keepPosts") ? obj.get("keepPosts").getAsInt() : 10,
+                        !obj.has("guid") || obj.get("guid").getAsBoolean(),
+                        posts
+                );
             } else {
                 err("Feed definition requires 'url', 'file', 'description', 'title', and 'post' properties");
                 return null;
@@ -287,11 +302,13 @@ public class Rssifier {
             errors.append(' ');
         }
         if (err instanceof Throwable thr) {
+            errors.append("<blockquote><span style=\"color:red;\">\n");
             errors.append(thr.getMessage());
             for (StackTraceElement stack : thr.getStackTrace()) {
                 errors.append("\n\tat ");
                 errors.append(stack);
             }
+            errors.append("\n</span></blockquote>");
         } else {
             errors.append(err);
         }
@@ -347,8 +364,10 @@ public class Rssifier {
 
     private record FeedDef(
             String url,
+            String title,
             Path file,
             int keep,
+            boolean guid,
             PostDef posts
     ) {}
 
