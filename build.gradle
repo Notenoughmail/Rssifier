@@ -1,0 +1,19 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.notenoughmail.rssifier'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.jsoup:jsoup:1.18.1'
+    implementation 'com.google.code.gson:gson:2.11.0'
+    implementation 'org.jspecify:jspecify:1.0.0'
+}
+
+test {
+}
