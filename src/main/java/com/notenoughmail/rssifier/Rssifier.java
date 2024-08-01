@@ -98,12 +98,14 @@ public class Rssifier {
                         } else {
                             err("Existing <i>%s</i> post \n<blockquote>%s</blockquote>\n did not have a 'title' element? Skipping processing".formatted(
                                     def.title(),
-                                    item.toString()
+                                    item.outerHtml()
                                             .replace("><", ">\n<")
-                                            .replace("<", "&lt;")
-                                            .replace(">", "&gt;")
                                             .replace("&", "&amp;")
                                             .replace("\"", "&quot;")
+                                            .replace("<", "&lt;")
+                                            .replace(">", "&gt;")
+                                            .replace("&lt;", "<span style=\"color:blue;\">&lt;")
+                                            .replace("&gt;", "&gt;</span>")
                             ));
                             break postProcessing;
                         }
@@ -158,11 +160,11 @@ public class Rssifier {
 
                         final Element processedChannel = new Element("channel", Parser.NamespaceXml);
                         copyToNewChannel(processedChannel, channel, items);
-
                         feed.getElementsByTag("channel").set(0, processedChannel);
+
                         final FileWriter fileWriter = new FileWriter(feedLocation.toFile());
                         final PrintWriter print = new PrintWriter(fileWriter);
-                        print.println(feed);
+                        print.print(feed.outerHtml());
                         print.close();
                     }
                 }
@@ -213,10 +215,9 @@ public class Rssifier {
     }
 
     private static void copyToNewChannel(Element newChannel, Element oldChannel, Elements items) {
-        newChannel.insertChildren(-1, oldChannel.getElementsByTag("generator"));
-        newChannel.insertChildren(-1, oldChannel.getElementsByTag("title"));
-        newChannel.insertChildren(-1, oldChannel.getElementsByTag("description"));
-        newChannel.insertChildren(-1, oldChannel.getElementsByTag("image"));
+        final Elements children = oldChannel.children();
+        children.removeIf(elm -> elm.tagName().equals("item"));
+        newChannel.insertChildren(-1, children);
         newChannel.insertChildren(-1, items);
     }
 
