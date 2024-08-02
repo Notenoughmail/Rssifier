@@ -19,8 +19,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 
 public class Rssifier {
@@ -71,7 +73,6 @@ public class Rssifier {
                         JsonArray.class
                 ).asList().stream().map(Rssifier::parseFeedConfig).filter(Objects::nonNull).toList();
 
-                postProcessing:
                 for (FeedDef def : feedDefs) {
                     final Document site = Jsoup.connect(def.url()).get();
                     final PostDef siteInfo = def.posts();
@@ -96,7 +97,7 @@ public class Rssifier {
                                 break;
                             }
                         } else {
-                            err("Existing <i>%s</i> post \n<blockquote>%s</blockquote>\n did not have a 'title' element? Skipping processing".formatted(
+                            err("Existing <i>%s</i> post \n<blockquote>%s</blockquote>\n did not have a 'title' element?".formatted(
                                     def.title(),
                                     item.outerHtml()
                                             .replace("><", ">\n<")
@@ -107,7 +108,6 @@ public class Rssifier {
                                             .replace("&lt;", "<span style=\"color:blue;\">&lt;")
                                             .replace("&gt;", "&gt;</span>")
                             ));
-                            break postProcessing;
                         }
                     }
 
@@ -184,7 +184,7 @@ public class Rssifier {
                 final Element channel = status.getElementsByTag("channel").getFirst();
                 final Elements items = channel.getElementsByTag("item");
                 items.addFirst(errorPost());
-                while (items.size() > 10) {
+                while (items.size() > 5) {
                     items.removeLast();
                 }
                 final Element processedChannel = new Element("channel", Parser.NamespaceXml);
@@ -248,7 +248,7 @@ public class Rssifier {
                                 obj.get("url").getAsString()
                         );
                     } catch (IOException exception) {
-                        err("Error creating feed file for %s".formatted(title), exception);
+                        err("Error creating feed file for <i>%s</i>".formatted(title), exception);
                         return null;
                     }
                 }
@@ -264,11 +264,11 @@ public class Rssifier {
                                 post.has("author") ? post.get("author").getAsString() : null
                         );
                     } else {
-                        err("Post definition requires 'permalink' and 'title' properties, %s post definition does not have them".formatted(title));
+                        err("Post definition requires <b>permalink</b> and <b>title</b> properties, <i>%s</i> post definition looks like\n\n<div style=\"color:green; margin-left: 2em;\"><code>%s</code></div>\nand is missing".formatted(title, post), missingProperties(post.keySet(), "title", "permalink"));
                         return null;
                     }
                 } else {
-                    err("Error parsing feed definition %S".formatted(json), "Post definition must be a json object");
+                    err("Error parsing <i>%s</i> feed definition\n\n<div style=\"color:green; margin-left: 2em;\"><code>%S</code></div>\nmust be a json object".formatted(title, obj.get("post")));
                     return null;
                 }
                 return new FeedDef(
@@ -280,13 +280,19 @@ public class Rssifier {
                         posts
                 );
             } else {
-                err("Feed definition requires 'url', 'file', 'description', 'title', and 'post' properties");
+                err("Feed definition requires <b>url</b>, <b>file</b>, <b>description</b>, <b>title</b>, and <b>post</b> properties, definition looks like\n\n<div style=\"color:green; margin-left: 2em;\"><code>%s</code></div>\n and is missing".formatted(obj), missingProperties(obj.keySet(), "url", "file", "description", "title", "post"));
                 return null;
             }
         } else {
-            err("Error parsing feed definition %s".formatted(json), "Feed definition must be a json object");
+            err("Error parsing feed definition \n\n<div style=\"color:green; margin-left: 2em;\"><code>%s</code></div>\nmust be a json object".formatted(json));
             return null;
         }
+    }
+
+    private static String missingProperties(Set<String> properties, String... required) {
+        final Set<String> props = new HashSet<>(Set.of(required));
+        props.removeIf(properties::contains);
+        return String.valueOf(props);
     }
 
     private static void err(Object err) {
@@ -299,19 +305,21 @@ public class Rssifier {
         }
         if (prefix != null) {
             errors.append(prefix);
-            errors.append(':');
-            errors.append(' ');
+            errors.append(": ");
         }
         if (err instanceof Throwable thr) {
-            errors.append("<blockquote><span style=\"color:red;\">\n");
+            errors.append("Error encountered:\n");
+            errors.append("<blockquote><samp style=\"color:red;\">\n");
             errors.append(thr.getMessage());
+            errors.append("<div style=\"margin-left: 2em\">");
             for (StackTraceElement stack : thr.getStackTrace()) {
                 errors.append("\n\tat ");
                 errors.append(stack);
             }
-            errors.append("\n</span></blockquote>");
+            errors.append("\n</div></samp></blockquote>");
         } else {
             errors.append(err);
+            errors.append("\n");
         }
     }
 
