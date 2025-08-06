@@ -1,0 +1,69 @@
+{
+  "feed_post_keep": 15,
+  "status_post_keep": 3,
+  "debug": true,
+  "feeds": [
+    {
+      "url": "https://xkcd.com/",
+      "title": "xkcd (homebrew rss edition)",
+      "file": "xkcd",
+      "description": "A webcomic of romance, sarcasm, math, and language",
+      "days_of_week": [
+        "monday",
+        "wednesday",
+        "friday"
+      ],
+      "post": {
+        "permalink": "div#middleContainer.box > a[href^=https://xkcd.com]",
+        "title": "div#ctitle",
+        "description": [
+          "div#ctitle",
+          "div#comic > img"
+        ]
+      }
+    },
+    {
+      "url": "https://www.amwua.org/news",
+      "title": "AMWUA News",
+      "file": "amwua news",
+      "description": "AMWUA News Room",
+      "post": {
+        "base_query": "div.grid.lg\\:grid-cols-2:first-of-type > div.p-5 >",
+        "description": "div > p",
+        "title": "div > h6",
+        "permalink": "div.flex.justify-between > a"
+      }
+    },
+    {
+      "url": "https://www.amwua.org/blog",
+      "title": "AMWUA Blog",
+      "file": "amwua blog",
+      "description": "AMWUA Blog",
+      "time_between_queries": {
+        "days": 3
+      },
+      "post": {
+        "base_query": "div.p-5.lg\\:w-1\\/2 >",
+        "description": "div.mb-2 > p",
+        "permalink": "div.flex > a",
+        "title": "div.pt-2 > h3"
+      }
+    },
+    {
+      "url": "https://news.azpm.org/environment/",
+      "title": "AZPM Environment",
+      "file": "AZPM Environment",
+      "description": "Arizona and the southwest face unique water and environmental challenges as the impacts of long-term drought continue to be felt. Keep up with AZPM’s local coverage.",
+      "time_between_queries": {
+        "days": 1
+      },
+      "post": {
+        "base_query": "div.col-md-7:has(> a[name=news]) > div.coritem:nth-child(3) > div.row > div.col-sm-9",
+        "title": "> h3 > a",
+        "permalink": "> h3 > a",
+        "publish_date": "> div",
+        "description": ""
+      }
+    }
+  ]
+}
