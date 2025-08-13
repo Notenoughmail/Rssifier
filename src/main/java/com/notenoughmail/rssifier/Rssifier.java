@@ -165,7 +165,12 @@ public class Rssifier {
             couldNotFind(siteInfo.permalink(), "permalink", "site url", def, site);
             return def.url();
         }
-        return elm.attr("abs:href").trim();
+        final String link = elm.attr("abs:href").trim();
+        if (link.isEmpty()) {
+            err("Found permalink element for site %s, but href attribute was absent or blank".formatted(i(def.title())));
+            return def.url();
+        }
+        return link;
     }
 
     private String postDate(FeedDef def, PostDef siteInfo, Document site) {
@@ -252,9 +257,14 @@ public class Rssifier {
                 if (search == null) {
                     msgBuilder.append("Nothing found with query %s\n".formatted(b(query.replaceAll("\\(>\\*", "(> "))));
                 } else {
-                    msgBuilder.append("<span style=\"color:purple\">Found %s element with query %s</span>\n\n".formatted(describeElement(search), b(query.replaceAll("\\(>\\*", "(> "))));
-                    msgBuilder.append("Direct children tags:\n<blockquote>");
-                    search.children().forEach(elm -> msgBuilder.append(describeElement(elm)).append(" fully qualified selector: <b>").append(elm.cssSelector()).append("</b>\n"));
+                    msgBuilder.append("<span class=\"rssifier-p\">Found %s element with query %s</span>\n\n".formatted(describeElement(search), b(query.replaceAll("\\(>\\*", "(> "))));
+                    msgBuilder.append("Direct children elements:\n<blockquote>");
+                    final Elements children = search.children();
+                    if (children.isEmpty()) {
+                        msgBuilder.append("None!");
+                    } else {
+                        children.forEach(elm -> msgBuilder.append(describeElement(elm)).append(" fully qualified selector: <b>").append(elm.cssSelector()).append("</b>\n"));
+                    }
                     msgBuilder.append("</blockquote>");
                     break;
                 }
@@ -338,6 +348,8 @@ public class Rssifier {
     public void err(@Nullable String prefix, Object err) {
         if (!errors.isEmpty()) {
             errors.append('\n');
+        } else {
+            errors.append("<style>.rssifier-p{color:purple;} .rssifier-r{color:red;} .rssifier-g{color:green;} .rssifier-b{color:blue;}</style>");
         }
         if (prefix != null) {
             errors.append(prefix);
@@ -345,7 +357,7 @@ public class Rssifier {
         }
         if (err instanceof Throwable thr) {
             errors.append("Error encountered:\n");
-            errors.append("<blockquote><samp style=\"color:red;\">\n");
+            errors.append("<blockquote><samp class=\"rssifier-r\">\n");
             thr(thr);
             errors.append("</samp></blockquote>");
         } else {

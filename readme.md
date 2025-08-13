@@ -78,3 +78,20 @@ Additionally, if an `.ico` file with the same name as a feed file is present in 
 In this repo there is an example `config.json` which processes [xkcd](https://xkcd.com/), [AMWUA](https://www.amwua.org/)'s blog and news collator, and [AZPM Environment](https://news.azpm.org/environment/)
 
 In addition to the feeds created from the `config.json` file there is a `Rssifier Status` feed that will auto-create after first running Rssifier. This will contain posts about any errors Rssifier encounters while creating/updating feeds.
+
+### Stylization
+
+In its error posts, Rssifier uses colors to signify certain things. These are handles by an inline style tag at the start of every post using the classes `rssifier-r`, `rssifier-p`, `rssifier-g`, and `rssifier-b`.
+
+This exists so that if your feed reader strips/does not allow inline css, but allows user-defined css (i.e. Thunderbird's dark mode), you can still have colors by *some* means.
+
+If your reader does not allow inline css *and* does not support user-provided styles, all text will be the default color.
+
+A table of the classes and their usages
+
+| Class        | Default color | Usage             |
+|--------------|---------------|-------------------|
+| `rssifier-r` | `red`         | Java stack traces |
+| `rssifier-p` | `purple`      | Query clipping    |
+| `rssifier-g` | `green`       | In-post JSON      |
+| `rssifier-b` | `blue`        | HTML tags         |

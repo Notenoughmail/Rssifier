@@ -13,7 +13,7 @@ public class RssifierFormatting {
     public static String html(Element element) {
         return "\n<blockquote>%s</blockquote>\n".formatted(
                 sanitizeForHtml(element.outerHtml().replace("><", ">\n<"))
-                        .replace("&lt;", "<span style=\"color:blue;\">&lt;")
+                        .replace("&lt;", "<span class=\"rssifier-b\">&lt;")
                         .replace("&gt;", "&gt;</span>")
         );
     }
@@ -45,7 +45,7 @@ public class RssifierFormatting {
     public static String json(JsonElement json) {
         final StringBuilder builder = new StringBuilder();
         formatJson(builder, json, 0, true);
-        return "\n\n<div style=\"color:green; margin-left: 2em;\"><code>%s</code></div>\n".formatted(builder.toString());
+        return "\n\n<div style=\"margin-left: 2em;\" class=\"rssifier-g\"><code>%s</code></div>\n".formatted(builder.toString());
     }
 
     public static void formatJson(StringBuilder builder, JsonElement json, int indent, boolean initialIndent) {
